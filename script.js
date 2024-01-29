@@ -12,12 +12,15 @@ const run = async (dataToSearch) => {
     const modifiedSrcs = [];
 
     const page = await browser.newPage();
-    await page.goto(`https://unsplash.com/s/photos/${dataToSearch[i]}`);
+    await page.goto(`https://unsplash.com/s/photos/${dataToSearch[i]}`, {
+      waitUntil: "domcontentloaded",
+    });
     await page.setViewport({ width: 1920, height: 1080 });
     const [button] = await page.$x("//button[contains(., 'Load more')]");
     if (button) {
       await button.click();
     }
+
     await scrollDown(page, 1000);
     const images = await page.$$("img");
     const srcs = await Promise.all(
@@ -35,11 +38,11 @@ const run = async (dataToSearch) => {
         modifiedSrcs.push(src);
       }
     });
-    console.log(modifiedSrcs);
+
     fs.mkdirSync(`${dataToSearch[i]}`);
 
     for (let j = 0; j < modifiedSrcs.length; j++) {
-      new Promise((resolve) => {
+      new Promise(() => {
         https.get(modifiedSrcs[j], (res) => {
           const stream = fs.createWriteStream(
             `${dataToSearch[i]}/picture${j + 1}.png`
@@ -47,13 +50,10 @@ const run = async (dataToSearch) => {
           res.pipe(stream);
           stream.on("finish", () => {
             stream.close();
-            resolve(); // Zakończ promisę po zakończeniu zapisu obrazu
           });
         });
       });
     }
-
-    // Czekaj na zakończenie wszystkich promisów przed zamknięciem przeglądarki
 
     await page.close();
     await browser.close();
