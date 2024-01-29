@@ -1,8 +1,12 @@
 const puppeteer = require("puppeteer");
 const fs = require("fs");
-const sharp = require("sharp");
 const https = require("https");
 
+/**
+ *  Runs script
+ *
+ * @param {string} dataToSearch
+ */
 const run = async (dataToSearch) => {
   for (let i = 0; i < dataToSearch.length; i++) {
     const browser = await puppeteer.launch({
@@ -59,6 +63,10 @@ const run = async (dataToSearch) => {
     await browser.close();
   }
 };
+/**
+ * Gets data from "frazy.txt" file, then run a "run" function
+ *
+ */
 
 const getDataFromFile = async () => {
   const dataToSearch = await fs
@@ -67,6 +75,14 @@ const getDataFromFile = async () => {
 
   run(dataToSearch);
 };
+
+/**
+ *
+ * Scrolls down to the bottom of the page or to the maximum number of scrolls
+ *
+ * @param {puppeteer.Page} page
+ * @param {number} maxScrolls
+ */
 
 const scrollDown = async (page, maxScrolls) => {
   await page.evaluate(async (maxScrolls) => {
