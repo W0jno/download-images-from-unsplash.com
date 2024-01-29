@@ -1,13 +1,13 @@
 const puppeteer = require("puppeteer");
 const fs = require("fs");
 const https = require("https");
-
 /**
- *  Runs script
+ * Runs script
  *
  * @param {string} dataToSearch
  */
 const run = async (dataToSearch) => {
+  fs.mkdirSync("zdjecia");
   for (let i = 0; i < dataToSearch.length; i++) {
     const browser = await puppeteer.launch({
       headless: false,
@@ -25,7 +25,7 @@ const run = async (dataToSearch) => {
       await button.click();
     }
 
-    await scrollDown(page, 1000);
+    await scrollDown(page, 300);
     const images = await page.$$("img");
     const srcs = await Promise.all(
       images.map(async (image) => {
@@ -43,31 +43,38 @@ const run = async (dataToSearch) => {
       }
     });
 
-    fs.mkdirSync(`${dataToSearch[i]}`);
+    fs.mkdirSync(`zdjecia/${dataToSearch[i]}`);
+
+    const downloadPromises = [];
 
     for (let j = 0; j < modifiedSrcs.length; j++) {
-      new Promise(() => {
+      const promise = new Promise((resolve) => {
         https.get(modifiedSrcs[j], (res) => {
           const stream = fs.createWriteStream(
-            `${dataToSearch[i]}/picture${j + 1}.png`
+            `zdjecia/${dataToSearch[i]}/picture${j + 1}.png`
           );
           res.pipe(stream);
           stream.on("finish", () => {
             stream.close();
+            resolve();
           });
         });
       });
+
+      downloadPromises.push(promise);
     }
 
+    await Promise.all(downloadPromises);
+    await convertResolutionTo1920(modifiedSrcs);
     await page.close();
     await browser.close();
   }
 };
+
 /**
  * Gets data from "frazy.txt" file, then run a "run" function
  *
  */
-
 const getDataFromFile = async () => {
   const dataToSearch = await fs
     .readFileSync("./frazy.txt", { encoding: "utf8" })
@@ -77,27 +84,24 @@ const getDataFromFile = async () => {
 };
 
 /**
- *
  * Scrolls down to the bottom of the page or to the maximum number of scrolls
  *
  * @param {puppeteer.Page} page
  * @param {number} maxScrolls
  */
-
 const scrollDown = async (page, maxScrolls) => {
   await page.evaluate(async (maxScrolls) => {
     await new Promise((resolve) => {
-      var totalHeight = 0;
-      var distance = 100;
-      var scrolls = 0; // scrolls counter
-      var timer = setInterval(() => {
-        var scrollHeight = document.body.scrollHeight;
+      let totalHeight = 0;
+      let distance = 100;
+      let scrolls = 0; // scrolls counter
+      let timer = setInterval(() => {
+        let scrollHeight = document.body.scrollHeight;
 
         window.scrollBy(0, distance);
         totalHeight += distance;
         scrolls++; // increment counter
 
-        // stop scrolling if reached the end or the maximum number of scrolls
         if (
           totalHeight >= scrollHeight - window.innerHeight ||
           scrolls >= maxScrolls
@@ -107,7 +111,40 @@ const scrollDown = async (page, maxScrolls) => {
         }
       }, 50);
     });
-  }, maxScrolls); // pass maxScrolls to the function
+  }, maxScrolls);
+};
+/**
+ *Converts resolution of picture to 1920 pixels
+ *
+ * @param {string[]} modifiedSrcs
+ */
+const convertResolutionTo1920 = async (modifiedSrcs) => {
+  const resolution = "q=100&w=1920";
+  const changedResSrcs = [];
+  fs.mkdirSync(`zdjecia/duze`);
+
+  const downloadPromises = [];
+
+  for (let i = 0; i < modifiedSrcs.length; i++) {
+    changedResSrcs.push(modifiedSrcs[i].replace("q=80&w=1000", resolution));
+  }
+
+  for (let j = 0; j < changedResSrcs.length; j++) {
+    const promise = new Promise((resolve) => {
+      https.get(changedResSrcs[j], (res) => {
+        const stream = fs.createWriteStream(`zdjecia/duze/picture${j + 1}.png`);
+        res.pipe(stream);
+        stream.on("finish", () => {
+          stream.close();
+          resolve();
+        });
+      });
+    });
+
+    downloadPromises.push(promise);
+  }
+
+  await Promise.all(downloadPromises);
 };
 
 getDataFromFile();
